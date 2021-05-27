@@ -1,32 +1,38 @@
+/** Program that translates virtual addresses to physical addresses in a tiny computing system
+ *
+ */
+
 import java.io.*;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.*;
 
 public class Main {
-    private static final int BUFFER_SIZE = 7;
+
     public static void main(String[] args) throws IOException {
 
-        int[] pageTable = {2, 4, 1, 7, 3, 5, 6};
+        int[] pageTable = {2, 4, 1, 7, 3, 5, 6}; // Virtual to Physical address mapping
         float start = System.nanoTime();
-        String inputFile = "OS1sequence";
-        //String outputFile = "outBru";
+        String inputFile = args[0];
 
-        //byte[] bytes = getByte(inputFile);
+        // Attach File to dataInputStream
         File file = new File(inputFile);
         FileInputStream fileInputStream = new FileInputStream(file);
         DataInputStream dataInputStream = new DataInputStream(fileInputStream);
 
+        // Create ArrayList of Longs to hold the Virtual Addresses
         ArrayList<Long> addresses = new ArrayList<Long>();
 
-        FileWriter fw = new FileWriter("out.txt");
+        // Create Buffered Writer to write the translated addresses to a text file
+        FileWriter fw = new FileWriter("output-OS1.txt");
         BufferedWriter bw = new BufferedWriter(fw);
 
+        // While loop that reads in virtual addresses and translates and outputs the corresponding physical addresses to a file
         while (dataInputStream.available()>0){
-            Long temp = dataInputStream.readLong();
-            Long reversed = Long.reverseBytes(temp);
-            String bitAddress = Long.toBinaryString(reversed);
-            if (bitAddress.length() < 7){
+            Long temp = dataInputStream.readLong(); // Reads address
+            Long reversed = Long.reverseBytes(temp); // Reverses bytes in address to get the correct format
+            String bitAddress = Long.toBinaryString(reversed); // Converts the long  address to its String representation
+            if (bitAddress.length() < 7){   // Ensures that zeros are not cut off in the Long to String conversion above
                 int num0 = 7 - bitAddress.length();
                 String zeroString = "";
                 for (int i = 0; i < num0; i ++){
@@ -34,22 +40,25 @@ public class Main {
                 }
                 bitAddress = zeroString + bitAddress;
             }
-            int virtualAddressNum = getInt(bitAddress);
-            int physicalAddressNum = pageTable[virtualAddressNum];
-            //System.out.println(virtualAddressNum + " : " + physicalAddressNum);
-            String physicalAddressNumString = Integer.toBinaryString(physicalAddressNum);
-            //System.out.println(physicalAddressNumString);
+            int virtualAddressNum = getInt(bitAddress); // Gets the virtual address number
+            if (virtualAddressNum > 6){   // If the virtual address cannot be mapped a message is written to the file for that address
+                bw.write("Address " + bitAddress + " could not be translated" + "\n");
+                continue;
+            }
+            int physicalAddressNum = pageTable[virtualAddressNum]; // Translates the virtual address number to the corresponding physical address number
+            String physicalAddressNumString = Integer.toBinaryString(physicalAddressNum); // Translates the physical address number to its binary representation in String format
+
             try {
-                String out = physicalAddressNumString + bitAddress.substring(bitAddress.length() - 7 ,bitAddress.length());
+                String out = physicalAddressNumString + bitAddress.substring(bitAddress.length() - 7 ,bitAddress.length()); // The binary representation (in String format) of the out address by combing the physical address number with the offset
                 Long decimal = Long.parseLong(out, 2);
-                String hexStr = Long.toHexString(decimal);
+                String hexStr = Long.toHexString(decimal); // Hexidecimal representation of physical address
                 int num0 = 0;
                 String zeroString = "";
-                for (int i = 0; i < 16 - hexStr.length(); i++){
+                for (int i = 0; i < 16 - hexStr.length(); i++){  // Padding to get the output in the format specified in the announcement
                     zeroString += "0";
                 }
                 hexStr = zeroString + hexStr;
-                bw.write(hexStr + "\n");
+                bw.write(hexStr + "\n"); // Writing physical address to the output file
             }
             catch (Exception e){
                 System.out.println(bitAddress);
@@ -61,6 +70,11 @@ public class Main {
         System.out.println(end-start);
     }
 
+    /**
+     * Converts a binary String to an Integer
+     * @param str
+     * @return Int
+     */
     public static int getInt(String str){
         int num=0;
         int count = 0;
@@ -74,102 +88,4 @@ public class Main {
         }
         return num;
     }
-
-    /**
-    public static byte[] getByte(String inputFile) throws IOException, FileNotFoundException {
-        byte[] buffer = new byte[1];
-        InputStream inputStream = new FileInputStream(inputFile);
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-
-        while (inputStream.read(buffer) != -1){
-            outputStream.write(buffer);
-        }
-        //System.out.print(outputStream);
-        inputStream.close();
-        outputStream.close();
-
-        return outputStream.toByteArray();
-    }
-
-    public static String byteToHex(byte num) {
-        char[] hexDigits = new char[2];
-        hexDigits[0] = Character.forDigit((num >> 4) & 0xF, 16);
-        hexDigits[1] = Character.forDigit((num & 0xF), 16);
-        return new String(hexDigits);
-    }
-
-    public static String encodeHexString(byte[] byteArray) {
-        StringBuffer hexStringBuffer = new StringBuffer();
-        for (int i = 0; i < byteArray.length; i++) {
-            hexStringBuffer.append(byteToHex(byteArray[i]));
-        }
-        return hexStringBuffer.toString();
-    }
-
-    public static String[] splitString(String string) {
-        String[] out = new String[string.length() / 16];
-        int splitCount = 0;
-        out[0] = "";
-        for (int i = 0; i < string.length(); i ++){
-            if (i % 16 == 0 && i != 0) {
-                splitCount ++;
-                out[splitCount] = "";
-            }
-            out[splitCount] += string.charAt(i);
-        }
-        return out;
-    }
-
-    public static String reverse(String str) {
-        StringBuilder out = new StringBuilder();
-        out.append(str);
-        out.reverse();
-        String outString = out.toString();
-        System.out.println(out);
-
-        char[] thing = outString.toCharArray();
-        for (int i = 0; i < thing.length; i ++) {
-            char temp = thing[i+1];
-            thing[i+1] = thing[i];
-            thing[i] = temp;
-            i ++;
-        }
-        return String.valueOf(thing);
-    }
-
-    public static String[] reverseArray(String[] array){
-        for (int i = 0; i < array.length; i ++){
-            array[i] = reverse(array[i]);
-        }
-        return array;
-    }
-
-    public static long[] longArray(String[] array) {
-        long[] longOut = new long[array.length];
-
-        for (int i = 0; i < array.length; i ++) {
-            longOut[i] = Long.parseLong(array[i]);
-        }
-        return longOut;
-    }
-
-     String inputFile = "OS1sequence";
-     String outputFile = "output.txt";
-
-     try (
-     InputStream inputStream = new FileInputStream(inputFile);
-     OutputStream outputStream = new FileOutputStream(outputFile);
-     ) {
-
-     byte[] buffer = new byte[BUFFER_SIZE];
-
-     while (inputStream.read(buffer) != -1) {
-     outputStream.write(buffer);
-     }
-
-     } catch (IOException ex) {
-     ex.printStackTrace();
-     }
-     **/
 }
